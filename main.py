@@ -4,6 +4,7 @@ import pyttsx3
 import webbrowser
 import wikipedia
 import wolframalpha
+import sys
 
 # Speech engine initialization
 engine = pyttsx3.init()
@@ -37,7 +38,7 @@ def speak(text, rate = 120):
 
 def parseCommand():
     listener = sr.Recognizer()
-    if useSpeach:
+    if useSpeach== True:
         print('Listening for a command...')
         attempts = 3
         for _ in range(attempts):
@@ -69,17 +70,14 @@ def listOrDict(var):
         return var['plaintext']
 
 def search_wikipidia(query = ''):
-    searchResults = wikipedia.search(query)
-    if not searchResults:
-        print('No wikipedia result')
-        return 'No reult recieved'
     try:
-        wikiPage = wikipedia.page(searchResults[0])
-    except wikipedia.DisambiguationError as error:
-        wikiPage = wikipedia.page(error.options[0])
-    print(wikiPage.title)
-    wikiSummary = str(wikiPage.summary)
-    return wikiSummary
+        result = wikipedia.summary(query, sentences=1)
+        return result
+    except wikipedia.exceptions.DisambiguationError as e:
+        result = (f"There are multiple results for {query}, please be more specific")
+        return result
+    except:
+        return ("Sorry, there was an error connecting to Wikipedia.")
 
 def search_wolframAplha(query = ''):
     try:
@@ -117,7 +115,71 @@ def search_wolframAplha(query = ''):
     except:
         return None
 
+def processCommand(query= ''):
+    if query:
+        #switch input mode
+        if 'switch' in query:
+            if 'text' in query:
+                setToText()
+            elif 'speach' in query :
+                setToSpeach()
+        #Greeting
+        elif query[0] == 'say':
+            if query[1] == 'hello':
+                speak('Greetings, all.')
+            else:
+                query.pop(0) # Remove say
+                speech = ' '.join(query)
+                speak(speech)
 
+        # Open website
+        elif ((query[0] == 'go')and(query[1] =='to')):
+                speak('Opening...')
+                query = ' '.join(query[2:])
+                try:
+                    webbrowser.get('chrome').open_new(query)
+                except:
+                    print("URL Not found")
+                    speak("Couldn't find URL in universal database")
+        elif (query[0] =='open'):
+            speak('Opening...')
+            query = ' '.join(query[1:])
+            try:
+                    webbrowser.get('chrome').open_new(query)
+            except:
+                    print("URL Not found")
+                    speak("Couldn't find URL in universal database")
+
+        #Wikipedia
+        elif 'wikipedia' in query and (query.index('for') > query.index('wikipedia')):
+                search = ' '.join(query[query.index('for')+1:])
+                speak('Querying the universal databank.')
+                webbrowser.get('chrome').open_new(f"https://en.wikipedia.org/wiki/{search}")
+                result = search_wikipidia(search)
+                speak(result)
+
+        #Wolframe Alpha 
+        elif query[0] =='compute':
+            query = " ".join(query[1:])
+            print(query)
+            print('Computing...')
+            speak('Computing...')
+            try:
+                result = search_wolframAplha(query)
+                speak(result)
+            except:
+                print('Unable to compute')
+                speak("Unable to compute")
+
+        #Note taking
+        elif query[0] == 'log':
+            speak('Ready to record your note')
+            newNote = parseCommand().lower()
+            now = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+            with open(f'note_%s.txt' % now, 'w') as newFile:
+                newFile.write(newNote)
+            speak('Note written')
+    return None
 
 #Main loop 
 if __name__ == '__main__':
@@ -140,76 +202,9 @@ if __name__ == '__main__':
             query.pop(0)
             #List of commands
             print(query)
-            if query:
-                #switch input mode
-                if 'switch to text' in query:
-                    setToText()
-                elif 'switch to speach' in query:
-                    setToSpeach()
-                #Greeting
-                if query[0] == 'say':
-                    if query[1] == 'hello':
-                        speak('Greetings, all.')
-                    else:
-                        query.pop(0) # Remove say
-                        speech = ' '.join(query)
-                        speak(speech)
-
-                # Open website
-                if ((query[0] == 'go')and(query[1] =='to')):
-                        speak('Opening...')
-                        query = ' '.join(query[2:])
-                        try:
-                            webbrowser.get('chrome').open_new(query)
-                        except:
-                            print("URL Not found")
-                            speak("Couldn't find URL in universal database")
-                elif (query[0] =='open'):
-                    speak('Opening...')
-                    query = ' '.join(query[1:])
-                    try:
-                            webbrowser.get('chrome').open_new(query)
-                    except:
-                            print("URL Not found")
-                            speak("Couldn't find URL in universal database")
-
-                #Wikipedia
-                if 'wikipedia' in query:
-                    if query[0] == 'wikipedia' or (query.index('wikipedia') == 1):
-                        if query[2] == 'for':
-                            search = ' '.join(query[3:])
-                        else:
-                            search = ' '.join(query[2:])
-                        speak('Querying the universal databank.')
-                        webbrowser.get('chrome').open_new(f"https://en.wikipedia.org/wiki/{search}")
-                        result = search_wikipidia(search)
-                        speak(result)
-
-                #Wolframe Alpha 
-                if query[0] =='compute':
-                    query = " ".join(query[1:])
-                    print(query)
-                    print('Computing...')
-                    speak('Computing...')
-                    
-                    try:
-                        result = search_wolframAplha(query)
-                        speak(result)
-                    except:
-                        print('Unable to compute')
-                        speak("Unable to compute")
-
-
-                #Note taking
-                if query[0] == 'log':
-                    speak('Ready to record your note')
-                    newNote = parseCommand().lower()
-                    now = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-                    with open(f'note_%s.txt' % now, 'w') as newFile:
-                        newFile.write(newNote)
-                    speak('Note written')
-                
-                #If user wants to stop Assistant
-                if query[0] == 'exit':
-                    speak('Goodbye')
-                    break 
+            processCommand(query)
+        #If user wants to stop Assistant
+        elif 'exit' in query:
+            if query[0] == 'exit' or query.index('exit')==1:
+                speak('Goodbye')
+                break 
