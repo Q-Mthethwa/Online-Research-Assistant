@@ -141,6 +141,11 @@ if __name__ == '__main__':
             #List of commands
             print(query)
             if query:
+                #switch input mode
+                if 'switch to text' in query:
+                    setToText()
+                elif 'switch to speach' in query:
+                    setToSpeach()
                 #Greeting
                 if query[0] == 'say':
                     if query[1] == 'hello':
